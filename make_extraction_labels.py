@@ -5,6 +5,7 @@ from os.path import exists, join
 import json
 from time import time
 from datetime import timedelta
+import multiprocessing as mp
 
 from cytoolz import curry
 
@@ -80,6 +81,30 @@ def _count_data(path):
     n_data = len(list(filter(match, names)))
     return n_data
 
+@curry
+def process(split, i):
+    data_dir = join(DATA_DIR, split)
+    dump_dir = join(DUMP_DIR, split)
+    with open(join(data_dir, '{}.json'.format(i))) as f:
+        data = json.loads(f.read())
+    art_sents, abs_sents = data['article'], data['abstract']
+    extracted, scores = get_extract_label(art_sents, abs_sents)
+    data['extracted'] = extracted
+    data['score'] = scores
+    with open(join(dump_dir, '{}.json'.format(i)), 'w') as f:
+        json.dump(data, f, indent=4)
+
+def label_mp(split):
+    """ process the data split with multi-processing"""
+    start = time()
+    print('start processing {} split...'.format(split))
+    data_dir = join(DATA_DIR, split)
+    n_data = _count_data(data_dir)
+    with mp.Pool() as pool:
+        list(pool.imap_unordered(process(split),
+                                 list(range(n_data)), chunksize=1024))
+    print('finished in {}'.format(timedelta(seconds=time()-start)))
+
 def label(split):
     start = time()
     print('start processing {} split...'.format(split))
@@ -104,7 +129,7 @@ def main():
     for split in ['val', 'train']:  # no need of extraction label when testing
         if not exists(join(DUMP_DIR, split)):
             os.makedirs(join(DUMP_DIR, split))
-        label(split)
+        label_mp(split)
 
 if __name__ == '__main__':
     main()
