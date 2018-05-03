@@ -1,0 +1,3 @@
+pytorch
+gensim
+tensorboardX
