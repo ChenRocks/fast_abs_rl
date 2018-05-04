@@ -1,5 +1,4 @@
 """produce the dataset with (psudo) extraction label"""
-import re
 import os
 from os.path import exists, join
 import json
@@ -8,6 +7,8 @@ from datetime import timedelta
 import multiprocessing as mp
 
 from cytoolz import curry
+
+from utils import count_data
 
 
 try:
@@ -73,14 +74,6 @@ def get_extract_label(art_sents, abs_sents):
             break
     return extracted, scores
 
-def _count_data(path):
-    """ count number of data in the given path"""
-    matcher = re.compile(r'[0-9]+\.json')
-    match = lambda name: bool(matcher.match(name))
-    names = os.listdir(path)
-    n_data = len(list(filter(match, names)))
-    return n_data
-
 @curry
 def process(split, i):
     data_dir = join(DATA_DIR, split)
@@ -99,7 +92,7 @@ def label_mp(split):
     start = time()
     print('start processing {} split...'.format(split))
     data_dir = join(DATA_DIR, split)
-    n_data = _count_data(data_dir)
+    n_data = count_data(data_dir)
     with mp.Pool() as pool:
         list(pool.imap_unordered(process(split),
                                  list(range(n_data)), chunksize=1024))
@@ -110,7 +103,7 @@ def label(split):
     print('start processing {} split...'.format(split))
     data_dir = join(DATA_DIR, split)
     dump_dir = join(DUMP_DIR, split)
-    n_data = _count_data(data_dir)
+    n_data = count_data(data_dir)
     for i in range(n_data):
         print('processing {}/{} ({:.2f}%%)\r'.format(i, n_data, 100*i/n_data),
               end='')
