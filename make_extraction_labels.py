@@ -81,7 +81,10 @@ def process(split, i):
     with open(join(data_dir, '{}.json'.format(i))) as f:
         data = json.loads(f.read())
     art_sents, abs_sents = data['article'], data['abstract']
-    extracted, scores = get_extract_label(art_sents, abs_sents)
+    if art_sents and abs_sents: # some data contains empty article/abstract
+        extracted, scores = get_extract_label(art_sents, abs_sents)
+    else:
+        extracted, scores = [], []
     data['extracted'] = extracted
     data['score'] = scores
     with open(join(dump_dir, '{}.json'.format(i)), 'w') as f:
