@@ -128,6 +128,15 @@ class Seq2SeqSumm(nn.Module):
             attns.append(attn_score.squeeze(0))
         return outputs, attns
 
+    @property
+    def embedding(self):
+        return self._embedding
+
+    @embedding.setter
+    def embedding(self, embedding):
+        assert self._embedding.weight.size() == embedding.size()
+        self._embedding.weight = embedding
+
 
 class AttentionalLSTMDecoder(object):
     def __init__(self, embedding, lstm, attn_w, projection):
