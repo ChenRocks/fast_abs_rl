@@ -6,7 +6,7 @@ from time import time
 from datetime import timedelta
 import multiprocessing as mp
 
-from cytoolz import curry
+from cytoolz import curry, compose
 
 from utils import count_data
 
@@ -57,6 +57,9 @@ def compute_rouge_l(output, reference, mode='f'):
             score = f_score
     return score
 
+def _split_words(texts):
+    return map(lambda t: t.split(), texts)
+
 
 def get_extract_label(art_sents, abs_sents):
     """ greedily match summary sentences to article sentences"""
@@ -80,7 +83,9 @@ def process(split, i):
     dump_dir = join(DUMP_DIR, split)
     with open(join(data_dir, '{}.json'.format(i))) as f:
         data = json.loads(f.read())
-    art_sents, abs_sents = data['article'], data['abstract']
+    tokenize = compose(list, _split_words)
+    art_sents = tokenize(data['article'])
+    abs_sents = tokenize(data['abstract'])
     if art_sents and abs_sents: # some data contains empty article/abstract
         extracted, scores = get_extract_label(art_sents, abs_sents)
     else:
@@ -112,7 +117,9 @@ def label(split):
               end='')
         with open(join(data_dir, '{}.json'.format(i))) as f:
             data = json.loads(f.read())
-        art_sents, abs_sents = data['article'], data['abstract']
+        tokenize = compose(list, _split_words)
+        art_sents = tokenize(data['article'])
+        abs_sents = tokenize(data['abstract'])
         extracted, scores = get_extract_label(art_sents, abs_sents)
         data['extracted'] = extracted
         data['score'] = scores
