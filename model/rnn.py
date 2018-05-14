@@ -1,6 +1,7 @@
 import torch
 from torch import nn
 from torch.nn import functional as F
+from torch.nn import init
 
 from .util import reorder_sequence, reorder_lstm_states
 
@@ -116,10 +117,22 @@ class MultiLayerLSTMCells(StackedLSTMCells):
         for _ in range(num_layers-1):
             cells.append(nn.LSTMCell(hidden_size, hidden_size, bias))
         super().__init__(cells, dropout)
+        self.reset_parameters()
 
     @property
     def bidirectional(self):
         return False
+
+    def reset_parameters(self):
+        for cell in self._cells:
+            # xavier initilization
+            gate_size = self.hidden_size / 4
+            for weight in [cell.weight_ih, cell.weight_hh]:
+                for w in torch.chunk(weight, 4, dim=0):
+                    init.xavier_normal_(w)
+            #forget bias = 1
+            for bias in [cell.bias_ih, cell.bias_hh]:
+                torch.chunk(bias, 4, dim=0)[1].data.fill_(1)
 
     @staticmethod
     def convert(lstm):
@@ -128,8 +141,8 @@ class MultiLayerLSTMCells(StackedLSTMCells):
             lstm.input_size, lstm.hidden_size,
             lstm.num_layers, dropout=lstm.dropout)
         for i, cell in enumerate(lstm_cell._cells):
-            cell.weight_ih.copy_(getattr(lstm, 'weight_ih_l{}'.format(i)))
-            cell.weight_hh.copy_(getattr(lstm, 'weight_hh_l{}'.format(i)))
-            cell.bias_ih.copy_(getattr(lstm, 'bias_ih_l{}'.format(i)))
-            cell.bias_hh.copy_(getattr(lstm, 'bias_hh_l{}'.format(i)))
+            cell.weight_ih.data.copy_(getattr(lstm, 'weight_ih_l{}'.format(i)))
+            cell.weight_hh.data.copy_(getattr(lstm, 'weight_hh_l{}'.format(i)))
+            cell.bias_ih.data.copy_(getattr(lstm, 'bias_ih_l{}'.format(i)))
+            cell.bias_hh.data.copy_(getattr(lstm, 'bias_hh_l{}'.format(i)))
         return lstm_cell
