@@ -128,14 +128,10 @@ class Seq2SeqSumm(nn.Module):
             attns.append(attn_score.squeeze(0))
         return outputs, attns
 
-    @property
-    def embedding(self):
-        return self._embedding
-
-    @embedding.setter
-    def embedding(self, embedding):
+    def set_embedding(self, embedding):
+        """embedding is the weight matrix"""
         assert self._embedding.weight.size() == embedding.size()
-        self._embedding.weight = embedding
+        self._embedding.weight.data.copy_(embedding)
 
 
 class AttentionalLSTMDecoder(object):

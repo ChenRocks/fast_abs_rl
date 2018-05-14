@@ -5,6 +5,8 @@ import os
 from os.path import join, exists
 import pickle as pkl
 
+from cytoolz import compose
+
 import torch
 from torch import optim
 from torch.nn import functional as F
@@ -17,7 +19,7 @@ from training import get_basic_grad_fn, basic_validate
 from training import BasicPipeline, BasicTrainer
 
 from data.data import CnnDmDataset
-from data.batcher import coll_fn, prepro_fn, batchify_fn
+from data.batcher import coll_fn, prepro_fn, convert_batch_copy, batchify_fn_copy
 from data.batcher import BucketedGenerater
 
 from utils import PAD, UNK, START, END
@@ -78,11 +80,14 @@ def configure_training(opt, lr, clip_grad, lr_decay, batch_size):
     return criterion, train_params
 
 def build_batchers(word2id, cuda, debug):
-    prepro = prepro_fn(UNK, word2id, args.max_art, args.max_abs)
+    prepro = prepro_fn(args.max_art, args.max_abs)
     def sort_key(sample):
-        src, _, target, _ = sample
+        src, target = sample
         return (len(target), len(src))
-    batchify = batchify_fn(PAD, START, END, cuda=cuda)
+    batchify = compose(
+        batchify_fn_copy(PAD, START, END, cuda=cuda),
+        convert_batch_copy(UNK, word2id)
+    )
 
     train_loader = DataLoader(
         MatchDataset('train'), batch_size=BUCKET_SIZE,
@@ -117,8 +122,9 @@ def main(args):
     if args.w2v:
         # NOTE: the pretrained embedding having the same dimension
         #       as args.emb_dim should already be trained
-        embedding, _ = make_embedding({i: w for w, i in word2id}, args.w2v)
-        net.embedding = embedding
+        embedding, _ = make_embedding(
+            {i: w for w, i in word2id.items()}, args.w2v)
+        net.set_embedding(embedding)
 
     # configure training setting
     criterion, train_params = configure_training(

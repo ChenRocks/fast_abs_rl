@@ -98,8 +98,6 @@ class CopyLSTMDecoder(AttentionalLSTMDecoder):
 
     def _step(self, tok, states, attention):
         prev_states, prev_out = states
-        vsize = self._embedding.weight.size(0)
-        tok.masked_fill_(tok >= vsize, 1)
         lstm_in = torch.cat(
             [self._embedding(tok).squeeze(1), prev_out],
             dim=1

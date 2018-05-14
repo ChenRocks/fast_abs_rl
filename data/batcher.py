@@ -12,68 +12,102 @@ import torch.multiprocessing as mp
 # Batching functions
 def coll_fn(data):
     source_lists, target_lists = unzip(data)
-    sources = list(filter(bool, source_lists))
-    targets = list(filter(bool, target_lists))
+    sources = list(filter(bool, concat(source_lists)))
+    targets = list(filter(bool, concat(target_lists)))
     assert all(sources) and all(targets)
     return sources, targets
 
 
-def tokenize(unk, word2id, max_len, texts):
+def tokenize(max_len, texts):
+    return [t.lower().split()[:max_len] for t in texts]
+
+def conver2id(unk, word2id, words_list):
     word2id = defaultdict(lambda: unk, word2id)
-    return [[word2id[w] for w in t.lower().split()[:max_len]] for t in texts]
+    return [[word2id[w] for w in words] for words in words_list]
 
 @curry
-def prepro_fn(unk, word2id, max_src_len, max_tgt_len, batch):
+def prepro_fn(max_src_len, max_tgt_len, batch):
     sources, targets = batch
+    sources = tokenize(max_src_len, sources)
+    targets = tokenize(max_tgt_len, targets)
+    batch = list(zip(sources, targets))
+    return batch
+
+@curry
+def convert_batch(unk, word2id, batch):
+    sources, targets = unzip(batch)
+    sources = conver2id(unk, word2id, sources)
+    targets = conver2id(unk, word2id, targets)
+    batch = list(zip(sources, targets))
+    return batch
+
+@curry
+def convert_batch_copy(unk, word2id, batch):
+    sources, targets = map(list, unzip(batch))
     ext_word2id = dict(word2id)
-    for words in sources:
-        for w in words:
-            if not w in ext_word2id:
-                ext_word2id[w] = len(ext_word2id)
-    src_exts = tokenize(unk, ext_word2id, max_src_len, concat(sources))
-    sources = tokenize(unk, word2id, max_src_len, concat(sources))
-    tar_ins = tokenize(unk, word2id, max_tgt_len, concat(targets))
-    targets = tokenize(unk, ext_word2id, max_tgt_len, concat(targets))
+    for source in sources:
+        for word in source:
+            if word not in ext_word2id:
+                ext_word2id[word] = len(ext_word2id)
+    src_exts = conver2id(unk, ext_word2id, sources)
+    sources = conver2id(unk, word2id, sources)
+    tar_ins = conver2id(unk, word2id, targets)
+    targets = conver2id(unk, ext_word2id, targets)
     batch = list(zip(sources, src_exts, tar_ins, targets))
     return batch
 
 
-def pad_batch_tensorize(inputs, pad=0):
+def pad_batch_tensorize(inputs, pad, cuda=True):
     """pad_batch_tensorize
 
     :param inputs: List of size B containing torch tensors of shape [T, ...]
     :type inputs: List[np.ndarray]
     :rtype: TorchTensor of size (B, T, ...)
     """
+    tensor_type = torch.cuda.LongTensor if cuda else torch.LongTensor
     batch_size = len(inputs)
-    max_len = max(arr.size(0) for arr in inputs)
-    # assuming equal trailing dimensions across list
-    arr_shape = tuple(list(inputs[0].size())[1:])
-    tensor_shape = (batch_size, max_len) + arr_shape
-    tensor = inputs[0].new(*tensor_shape)
+    max_len = max(len(ids) for ids in inputs)
+    tensor_shape = (batch_size, max_len)
+    tensor = tensor_type(*tensor_shape)
     tensor.fill_(pad)
-    for i, arr in enumerate(inputs):
-        tensor[i, :arr.size(0)] = arr
+    for i, ids in enumerate(inputs):
+        tensor[i, :len(ids)] = tensor_type(ids)
     return tensor
 
 @curry
 def batchify_fn(pad, start, end, data, cuda=True):
-    sources, ext_srcs, tar_ins, targets = tuple(map(list, unzip(data)))
-    tensor_type = torch.cuda.LongTensor if cuda else torch.LongTensor
+    sources, targets = tuple(map(list, unzip(data)))
 
     src_lens = [len(src) for src in sources]
-    sources = [tensor_type(src) for src in sources]
-    ext_srcs = [tensor_type(ext) for ext in ext_srcs]
+    tar_ins = [[start] + tgt for tgt in targets]
+    targets = [tgt + [end] for tgt in targets]
 
-    tar_ins = [tensor_type([start] + tgt) for tgt in tar_ins]
-    targets = [tensor_type(tgt + [end]) for tgt in targets]
+    source = pad_batch_tensorize(sources, pad, cuda)
+    tar_in = pad_batch_tensorize(tar_ins, pad, cuda)
+    target = pad_batch_tensorize(targets, pad, cuda)
 
-    source = pad_batch_tensorize(sources, pad)
-    tar_in = pad_batch_tensorize(tar_ins, pad)
-    target = pad_batch_tensorize(targets, pad)
-    ext_src = pad_batch_tensorize(ext_srcs, pad)
+    fw_args = (source, src_lens, tar_in)
+    loss_args = (target, )
+    return fw_args, loss_args
 
-    ext_vsize = ext_src.max().item()
+
+@curry
+def batchify_fn_copy(pad, start, end, data, cuda=True):
+    sources, ext_srcs, tar_ins, targets = tuple(map(list, unzip(data)))
+
+    src_lens = [len(src) for src in sources]
+    sources = [src for src in sources]
+    ext_srcs = [ext for ext in ext_srcs]
+
+    tar_ins = [[start] + tgt for tgt in tar_ins]
+    targets = [tgt + [end] for tgt in targets]
+
+    source = pad_batch_tensorize(sources, pad, cuda)
+    tar_in = pad_batch_tensorize(tar_ins, pad, cuda)
+    target = pad_batch_tensorize(targets, pad, cuda)
+    ext_src = pad_batch_tensorize(ext_srcs, pad, cuda)
+
+    ext_vsize = ext_src.max().item() + 1
     fw_args = (source, src_lens, tar_in, ext_src, ext_vsize)
     loss_args = (target, )
     return fw_args, loss_args

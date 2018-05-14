@@ -17,11 +17,12 @@ def get_basic_grad_fn(net, clip_grad, max_grad=1e2):
     def f():
         grad_norm = clip_grad_norm_(
             [p for p in net.parameters() if p.requires_grad], clip_grad)
+        grad_norm = grad_norm.item()
         if max_grad is not None and grad_norm >= max_grad:
             print('WARNING: Exploding Gradients {:.2f}'.format(grad_norm))
             grad_norm = max_grad
         grad_log = {}
-        grad_log['grad_norm'] = grad_norm.item()
+        grad_log['grad_norm'] = grad_norm
         return grad_log
     return f
 
@@ -37,7 +38,6 @@ def val_step(loss_step, fw_args, loss_args):
 
 @curry
 def basic_validate(net, criterion, val_batches):
-    print('')
     print('running validation ... ', end='')
     net.eval()
     start = time()
@@ -53,7 +53,7 @@ def basic_validate(net, criterion, val_batches):
         'validation finished in {}                                    '.format(
             timedelta(seconds=int(time()-start)))
     )
-    print('validation loss: {:.4f} ... '.format(val_loss), end='')
+    print('validation loss: {:.4f} ... '.format(val_loss))
     return {'loss': val_loss}
 
 
