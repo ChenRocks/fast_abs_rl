@@ -143,9 +143,12 @@ class BucketedGenerater(object):
 
     def __call__(self, batch_size: int):
         def get_batches(hyper_batch):
-            hyper_batch.sort(key=self._sort_key)
             indexes = list(range(0, len(hyper_batch), batch_size))
-            random.shuffle(indexes)
+            if not self._single_run:
+                # random shuffle for training batches
+                random.shuffle(hyper_batch)
+                random.shuffle(indexes)
+            hyper_batch.sort(key=self._sort_key)
             for i in indexes:
                 batch = self._batchify(hyper_batch[i:i+batch_size])
                 yield batch
