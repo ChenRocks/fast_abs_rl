@@ -117,7 +117,6 @@ class MultiLayerLSTMCells(StackedLSTMCells):
         for _ in range(num_layers-1):
             cells.append(nn.LSTMCell(hidden_size, hidden_size, bias))
         super().__init__(cells, dropout)
-        self.reset_parameters()
 
     @property
     def bidirectional(self):
