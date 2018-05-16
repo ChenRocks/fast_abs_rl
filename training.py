@@ -221,4 +221,5 @@ class BasicTrainer(object):
                   timedelta(seconds=time()-self._start_time))
         except Exception as e:
             print(e)
+        finally:
             self._pipeline.terminate()
