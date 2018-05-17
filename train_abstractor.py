@@ -19,7 +19,8 @@ from training import get_basic_grad_fn, basic_validate
 from training import BasicPipeline, BasicTrainer
 
 from data.data import CnnDmDataset
-from data.batcher import coll_fn, prepro_fn, convert_batch_copy, batchify_fn_copy
+from data.batcher import coll_fn, prepro_fn
+from data.batcher import convert_batch_copy, batchify_fn_copy
 from data.batcher import BucketedGenerater
 
 from utils import PAD, UNK, START, END
@@ -36,7 +37,9 @@ except KeyError:
     print('please use environment variable to specify data directories')
 
 class MatchDataset(CnnDmDataset):
-    """ lead-3 sentences -> first summary"""
+    """ single article sentence -> single abstract sentence
+    (dataset created by greedily matching ROUGE)
+    """
     def __init__(self, split):
         super().__init__(split, DATASET_DIR)
 
@@ -63,7 +66,7 @@ def configure_net(vocab_size, emb_dim,
 
 def configure_training(opt, lr, clip_grad, lr_decay, batch_size):
     """ supports Adam optimizer only"""
-    assert(opt in ['adam'])
+    assert opt in ['adam']
     opt_kwargs = {}
     opt_kwargs['lr'] = lr
 
@@ -174,7 +177,7 @@ if __name__ == '__main__':
     parser.add_argument('--vsize', type=int, action='store', default=30000,
                         help='vocabulary size')
     parser.add_argument('--emb_dim', type=int, action='store', default=128,
-                        help='the dimention of word embedding')
+                        help='the dimension of word embedding')
     parser.add_argument('--w2v', action='store',
                         help='use pretrained word2vec embedding')
     parser.add_argument('--n_hidden', type=int, action='store', default=256,
@@ -190,8 +193,6 @@ if __name__ == '__main__':
     parser.add_argument('--max_abs', type=int, action='store', default=30,
                         help='maximun words in a single abstract sentence')
     # training options
-    parser.add_argument('--opt', action='store', default='adam',
-                        help='optimizer')
     parser.add_argument('--lr', type=float, action='store', default=1e-3,
                         help='learning rate')
     parser.add_argument('--decay', type=float, action='store', default=0.5,
