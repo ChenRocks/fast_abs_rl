@@ -29,7 +29,6 @@ from data.batcher import BucketedGenerater
 
 
 BUCKET_SIZE = 6400
-EXT_NUM = 5
 
 try:
     DATA_DIR = os.environ['DATA']

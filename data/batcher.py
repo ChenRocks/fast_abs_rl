@@ -29,6 +29,7 @@ def coll_fn_extract(data):
     assert all(map(is_good_data, batch))
     return batch
 
+@curry
 def tokenize(max_len, texts):
     return [t.lower().split()[:max_len] for t in texts]
 

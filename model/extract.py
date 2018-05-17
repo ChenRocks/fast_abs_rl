@@ -211,8 +211,8 @@ class LSTMPointerNet(nn.Module):
                 attn_feat, query, self._attn_v, self._attn_wq)
             score = score.squeeze()
             for e in extracts:
-                score[e][0] = -1e6
-            ext = score.max(dim=0)[1][0].item()
+                score[e] = -1e6
+            ext = score.max(dim=0)[1].item()
             extracts.append(ext)
             lstm_states = (h, c)
             lstm_in = attn_mem[:, ext, :]
@@ -245,8 +245,11 @@ class LSTMPointerNet(nn.Module):
     def attention(attention, query, v, w, mem_sizes):
         """ attention context vector"""
         score = LSTMPointerNet.attention_score(attention, query, v, w)
-        mask = len_mask(mem_sizes, score.get_device()).unsqueeze(-2)
-        norm_score = prob_normalize(score, mask)
+        if mem_sizes is None:
+            norm_score = F.softmax(score, dim=-1)
+        else:
+            mask = len_mask(mem_sizes, score.get_device()).unsqueeze(-2)
+            norm_score = prob_normalize(score, mask)
         output = torch.matmul(norm_score, attention)
         return output
 
