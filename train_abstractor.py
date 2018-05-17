@@ -131,7 +131,7 @@ def main(args):
 
     # configure training setting
     criterion, train_params = configure_training(
-        args.opt, args.lr, args.clip, args.decay, args.batch
+        'adam', args.lr, args.clip, args.decay, args.batch
     )
 
     # save experiment setting
