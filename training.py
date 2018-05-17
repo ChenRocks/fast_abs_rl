@@ -219,7 +219,7 @@ class BasicTrainer(object):
                         break
             print('Training finised in ',
                   timedelta(seconds=time()-self._start_time))
-        except Exception as e:
-            print(e)
+        #except Exception as e:
+            #print(e)
         finally:
             self._pipeline.terminate()
