@@ -134,8 +134,8 @@ class BasicTrainer(object):
     """ Basic trainer with minimal function and early stopping"""
     def __init__(self, pipeline, save_dir, ckpt_freq, patience,
                  scheduler=None, val_mode='loss'):
-        assert(isinstance(pipeline, BasicPipeline))
-        assert(val_mode in ['loss', 'score'])
+        assert isinstance(pipeline, BasicPipeline)
+        assert val_mode in ['loss', 'score']
         self._pipeline = pipeline
         self._save_dir = save_dir
         self._logger = tensorboardX.SummaryWriter(join(save_dir, 'log'))
@@ -153,14 +153,15 @@ class BasicTrainer(object):
         self._best_val = None
 
     def log(self, log_dict):
-        loss = log_dict['loss']
+        loss = log_dict['loss'] if 'loss' in log_dict else log_dict['reward']
         if self._running_loss is not None:
             self._running_loss = 0.99*self._running_loss + 0.01*loss
         else:
             self._running_loss = loss
-        print('train step: {}, loss: {:.4f}\r'.format(
-                  self._step, self._running_loss),
-              end='')
+        print('train step: {}, {}: {:.4f}\r'.format(
+            self._step,
+            'loss' if 'loss' in log_dict else 'reward',
+            self._running_loss), end='')
         for key, value in log_dict.items():
             self._logger.add_scalar(
                 '{}_{}'.format(key, self._pipeline.name), value, self._step)
@@ -173,40 +174,38 @@ class BasicTrainer(object):
                 'val_{}_{}'.format(key, self._pipeline.name),
                 value, self._step
             )
-        if 'metric' in val_log:
-            val_metric = val_log['metric']
+        if 'reward' in val_log:
+            val_metric = val_log['reward']
         else:
             val_metric = (val_log['loss'] if self._val_mode == 'loss'
                           else val_log['score'])
-        val_obj = (val_log['loss'] if self._val_mode == 'loss'
-                   else val_log['score'])
-        return val_metric, val_obj
+        return val_metric
 
     def checkpoint(self):
-        val_metric, val_obj = self.validate()
+        val_metric = self.validate()
         self._pipeline.checkpoint(
             join(self._save_dir, 'ckpt'), self._step, val_metric)
         if isinstance(self._sched, ReduceLROnPlateau):
-            self._sched.step(val_obj)
+            self._sched.step(val_metric)
         else:
             self._sched.step()
-        stop = self.check_stop(val_obj)
+        stop = self.check_stop(val_metric)
         return stop
 
-    def check_stop(self, val_obj):
+    def check_stop(self, val_metric):
         if self._best_val is None:
-            self._best_val = val_obj
-        elif ((val_obj < self._best_val and self._val_mode == 'loss')
-              or (val_obj > self._best_val and self._val_mode == 'score')):
+            self._best_val = val_metric
+        elif ((val_metric < self._best_val and self._val_mode == 'loss')
+              or (val_metric > self._best_val and self._val_mode == 'score')):
             self._current_p = 0
-            self._best_val = val_obj
+            self._best_val = val_metric
         else:
             self._current_p += 1
         return self._current_p >= self._patience
 
     def train(self):
         try:
-            self._start_time = time()
+            start = time()
             print('Start training')
             while True:
                 log_dict = self._pipeline.train_step()
@@ -217,9 +216,6 @@ class BasicTrainer(object):
                     stop = self.checkpoint()
                     if stop:
                         break
-            print('Training finised in ',
-                  timedelta(seconds=time()-self._start_time))
-        #except Exception as e:
-            #print(e)
+            print('Training finised in ', timedelta(seconds=time()-start))
         finally:
             self._pipeline.terminate()
