@@ -4,7 +4,7 @@ import subprocess as sp
 from os.path import dirname, abspath
 from collections import Counter, deque
 
-from cytoolz import concat
+from cytoolz import concat, curry
 
 
 def make_n_grams(seq, n):
@@ -19,6 +19,7 @@ def _n_gram_match(summ, ref, n):
     count = sum(min(summ_grams[g], ref_grams[g]) for g in grams)
     return count
 
+@curry
 def compute_rouge_n(output, reference, n=1, mode='f'):
     """ compute ROUGE-N for a single pair of summary and reference"""
     assert mode in list('fpr')  # F-1, precision, recall
@@ -56,6 +57,7 @@ def _lcs_len(a, b):
     dp = _lcs_dp(a, b)
     return dp[-1][-1]
 
+@curry
 def compute_rouge_l(output, reference, mode='f'):
     """ compute ROUGE-L for a single pair of summary and reference
     output, reference are list of words
