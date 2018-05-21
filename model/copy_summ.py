@@ -70,7 +70,7 @@ class CopySumm(Seq2SeqSumm):
             tok, states, attn_score = self._decoder.decode_step(
                 tok, states, attention)
             attns.append(attn_score)
-            outputs.append(tok[:, 0])
+            outputs.append(tok[:, 0].clone())
             tok.masked_fill_(tok >= vsize, unk)
         return outputs, attns
 
