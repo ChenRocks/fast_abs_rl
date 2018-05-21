@@ -5,7 +5,7 @@ from torch.nn import init
 from .rnn import lstm_encoder
 from .rnn import MultiLayerLSTMCells
 from .attention import step_attention
-from .util import sequence_mean
+from .util import sequence_mean, len_mask
 
 
 INIT = 1e-2
@@ -62,7 +62,8 @@ class Seq2SeqSumm(nn.Module):
 
     def forward(self, article, art_lens, abstract):
         attention, init_dec_states = self.encode(article, art_lens)
-        logit = self._decoder((attention, art_lens), init_dec_states, abstract)
+        mask = len_mask(art_lens, attention.get_device()).unsqueeze(-2)
+        logit = self._decoder((attention, mask), init_dec_states, abstract)
         return logit
 
     def encode(self, article, art_lens=None):
@@ -100,7 +101,8 @@ class Seq2SeqSumm(nn.Module):
         """ greedy decode support batching"""
         batch_size = len(art_lens)
         attention, init_dec_states = self.encode(article, art_lens)
-        attention = (attention, art_lens)
+        mask = len_mask(art_lens, attention.get_device()).unsqueeze(-2)
+        attention = (attention, mask)
         tok = torch.LongTensor([go]*batch_size).to(article.get_device())
         outputs = []
         attns = []
@@ -162,9 +164,9 @@ class AttentionalLSTMDecoder(object):
         states = self._lstm(lstm_in, prev_states)
         lstm_out = states[0][-1]
         query = torch.mm(lstm_out, self._attn_w)
-        attention, attn_lens = attention
+        attention, attn_mask = attention
         context, score = step_attention(
-            query, attention, attention, attn_lens)
+            query, attention, attention, attn_mask)
         dec_out = self._projection(torch.cat([lstm_out, context], dim=1))
         states = (states, dec_out)
         logit = torch.mm(dec_out, self._embedding.weight.t())

@@ -1,8 +1,6 @@
 """ attention functions """
 from torch.nn import functional as F
 
-from .util import len_mask
-
 
 def dot_attention_score(key, query):
     """[B, Tk, D], [(Bs), B, Tq, D] -> [(Bs), B, Tq, Tk]"""
@@ -21,13 +19,12 @@ def attention_aggregate(value, score):
     return output
 
 
-def step_attention(query, key, value, mem_sizes=None):
+def step_attention(query, key, value, mem_mask=None):
     """ query[(Bs), B, D], key[B, T, D], value[B, T, D]"""
     score = dot_attention_score(key, query.unsqueeze(-2))
-    if mem_sizes is None:
+    if mem_mask is None:
         norm_score = F.softmax(score, dim=-1)
     else:
-        mem_mask = len_mask(mem_sizes, score.get_device()).unsqueeze(-2)
         norm_score = prob_normalize(score, mem_mask)
     output = attention_aggregate(value, score)
     return output.squeeze(-2), norm_score.squeeze(-2)

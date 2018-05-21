@@ -4,6 +4,7 @@ from torch.nn import init
 from torch.nn import functional as F
 
 from .attention import step_attention
+from .util import len_mask
 from .summ import Seq2SeqSumm, AttentionalLSTMDecoder
 
 
@@ -46,8 +47,9 @@ class CopySumm(Seq2SeqSumm):
 
     def forward(self, article, art_lens, abstract, extend_art, extend_vsize):
         attention, init_dec_states = self.encode(article, art_lens)
+        mask = len_mask(art_lens, attention.get_device()).unsqueeze(-2)
         logit = self._decoder(
-            (attention, art_lens, extend_art, extend_vsize),
+            (attention, mask, extend_art, extend_vsize),
             init_dec_states, abstract
         )
         return logit
@@ -58,7 +60,8 @@ class CopySumm(Seq2SeqSumm):
         batch_size = len(art_lens)
         vsize = self._embedding.num_embeddings
         attention, init_dec_states = self.encode(article, art_lens)
-        attention = (attention, art_lens, extend_art, extend_vsize)
+        mask = len_mask(art_lens, attention.get_device()).unsqueeze(-2)
+        attention = (attention, mask, extend_art, extend_vsize)
         tok = torch.LongTensor([go]*batch_size).to(article.get_device())
         outputs = []
         attns = []
@@ -105,9 +108,9 @@ class CopyLSTMDecoder(AttentionalLSTMDecoder):
         states = self._lstm(lstm_in, prev_states)
         lstm_out = states[0][-1]
         query = torch.mm(lstm_out, self._attn_w)
-        attention, attn_lens, extend_src, extend_vsize = attention
+        attention, attn_mask, extend_src, extend_vsize = attention
         context, score = step_attention(
-            query, attention, attention, attn_lens)
+            query, attention, attention, attn_mask)
         dec_out = self._projection(torch.cat([lstm_out, context], dim=1))
 
         # extend generation prob to extended vocabulary
