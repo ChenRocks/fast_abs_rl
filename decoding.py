@@ -65,28 +65,27 @@ class Abstractor(object):
         self._max_len = max_len
 
     def __call__(self, raw_article_sents):
-        with torch.no_grad():
-            self._net.eval()
-            ext_word2id = dict(self._word2id)
-            ext_id2word = dict(self._id2word)
-            for raw_words in raw_article_sents:
-                for w in raw_words:
-                    if not w in ext_word2id:
-                        ext_word2id[w] = len(ext_word2id)
-                        ext_id2word[len(ext_id2word)] = w
-            articles = conver2id(UNK, self._word2id, raw_article_sents)
-            art_lens = [len(art) for art in articles]
-            article = pad_batch_tensorize(articles, PAD, cuda=False
-                                         ).to(self._device)
-            extend_arts = conver2id(UNK, ext_word2id, raw_article_sents)
-            extend_art = pad_batch_tensorize(extend_arts, PAD, cuda=False
-                                            ).to(self._device)
-            extend_vsize = len(ext_word2id)
-            dec_args = (article, art_lens, extend_art, extend_vsize,
-                        START, END, UNK, self._max_len)
-            def argmax(arr, keys):
-                return arr[max(range(len(arr)), key=lambda i: keys[i].item())]
-            decs, attns = self._net.batch_decode(*dec_args)
+        self._net.eval()
+        ext_word2id = dict(self._word2id)
+        ext_id2word = dict(self._id2word)
+        for raw_words in raw_article_sents:
+            for w in raw_words:
+                if not w in ext_word2id:
+                    ext_word2id[w] = len(ext_word2id)
+                    ext_id2word[len(ext_id2word)] = w
+        articles = conver2id(UNK, self._word2id, raw_article_sents)
+        art_lens = [len(art) for art in articles]
+        article = pad_batch_tensorize(articles, PAD, cuda=False
+                                     ).to(self._device)
+        extend_arts = conver2id(UNK, ext_word2id, raw_article_sents)
+        extend_art = pad_batch_tensorize(extend_arts, PAD, cuda=False
+                                        ).to(self._device)
+        extend_vsize = len(ext_word2id)
+        dec_args = (article, art_lens, extend_art, extend_vsize,
+                    START, END, UNK, self._max_len)
+        def argmax(arr, keys):
+            return arr[max(range(len(arr)), key=lambda i: keys[i].item())]
+        decs, attns = self._net.batch_decode(*dec_args)
         dec_sents = []
         for i, raw_words in enumerate(raw_article_sents):
             dec = []

@@ -71,27 +71,28 @@ def decode(save_path, abs_dir, ext_dir, split, batch_size, max_len, cuda):
 
     # Decoding
     i = 0
-    for i_debug, raw_article_batch in enumerate(loader):
-        tokenized_article_batch = map(tokenize(None), raw_article_batch)
-        ext_arts = []
-        ext_inds = []
-        for raw_art_sents in tokenized_article_batch:
-            ext = extractor(raw_art_sents)
-            ext_inds += [(len(ext_arts), len(ext))]
-            ext_arts += list(map(lambda i: raw_art_sents[i], ext))
-        dec_outs = abstractor(ext_arts)
-        assert i == batch_size*i_debug
-        for j, n in ext_inds:
-            decoded_sents = [' '.join(dec) for dec in dec_outs[j:j+n]]
-            for k, dec_str in enumerate(decoded_sents):
-                with open(join(save_path, 'output_{}/{}.dec'.format(k, i)),
-                          'w') as f:
-                    f.write(make_html_safe(dec_str))
+    with torch.no_grad():
+        for i_debug, raw_article_batch in enumerate(loader):
+            tokenized_article_batch = map(tokenize(None), raw_article_batch)
+            ext_arts = []
+            ext_inds = []
+            for raw_art_sents in tokenized_article_batch:
+                ext = extractor(raw_art_sents)
+                ext_inds += [(len(ext_arts), len(ext))]
+                ext_arts += list(map(lambda i: raw_art_sents[i], ext))
+            dec_outs = abstractor(ext_arts)
+            assert i == batch_size*i_debug
+            for j, n in ext_inds:
+                decoded_sents = [' '.join(dec) for dec in dec_outs[j:j+n]]
+                for k, dec_str in enumerate(decoded_sents):
+                    with open(join(save_path, 'output_{}/{}.dec'.format(k, i)),
+                              'w') as f:
+                        f.write(make_html_safe(dec_str))
 
-            i += 1
-            print('{}/{} ({:.2f}%) decoded in {} seconds\r'.format(
-                i, n_data, i/n_data*100, timedelta(seconds=int(time()-start))
-            ), end='')
+                i += 1
+                print('{}/{} ({:.2f}%) decoded in {} seconds\r'.format(
+                    i, n_data, i/n_data*100, timedelta(seconds=int(time()-start))
+                ), end='')
     print()
 
 
