@@ -1,7 +1,7 @@
 """ ROUGE utils"""
+import os
 import threading
 import subprocess as sp
-from os.path import dirname, abspath
 from collections import Counter, deque
 
 from cytoolz import concat, curry
@@ -126,15 +126,17 @@ def compute_rouge_l_summ(summs, refs, mode='f'):
     return score
 
 
-_METEOR_PATH = 'meteor/meteor-1.5.jar'  # TODO os.environ
-_DIR = dirname(abspath(__file__))
-
-
+try:
+    _METEOR_PATH = os.environ['METEOR']
+except KeyError:
+    print('Warning: METEOR is not configured')
+    _METEOR_PATH = None
 class Meteor(object):
     def __init__(self):
+        assert _METEOR_PATH is not None
         cmd = 'java -Xmx2G -jar {} - - -l en -norm -stdio'.format(_METEOR_PATH)
         self._meteor_proc = sp.Popen(
-            cmd.split(), cwd=_DIR,
+            cmd.split(),
             stdin=sp.PIPE, stdout=sp.PIPE, stderr=sp.PIPE,
             universal_newlines=True, encoding='utf-8', bufsize=1
         )
