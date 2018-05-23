@@ -19,14 +19,13 @@ from data.batcher import conver2id, pad_batch_tensorize
 
 from model.rl import ActorCritic
 from model.extract import PtrExtractSumm
-from data.data import CnnDmDataset
 from data.batcher import tokenize
 
 from training import BasicTrainer
 from rl import get_grad_fn
 from rl import A2CPipeline
 from decoding import load_best_ckpt
-from decoding import Abstractor
+from decoding import Abstractor, ArticleBatcher
 from metric import compute_rouge_l, compute_rouge_n
 
 
@@ -49,19 +48,6 @@ class RLDataset(CnnDmDataset):
         art_sents = js_data['article']
         abs_sents = js_data['abstract']
         return art_sents, abs_sents
-
-
-class ArticleBatcher(object):
-    def __init__(self, word2id, cuda=True):
-        self._device = torch.device('cuda' if cuda else 'cpu')
-        self._word2id = word2id
-        self._device = torch.device('cuda' if cuda else 'cpu')
-
-    def __call__(self, raw_article_sents):
-        articles = conver2id(UNK, self._word2id, raw_article_sents)
-        article = pad_batch_tensorize(articles, PAD, cuda=False
-                                     ).to(self._device)
-        return article
 
 def load_ext_net(ext_dir):
     ext_meta = json.load(open(join(ext_dir, 'meta.json')))

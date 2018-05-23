@@ -10,6 +10,7 @@ import torch
 from utils import PAD, UNK, START, END
 from model.copy_summ import CopySumm
 from model.extract import ExtractSumm, PtrExtractSumm
+from model.rl import ActorCritic
 from data.batcher import conver2id, pad_batch_tensorize
 from data.data import CnnDmDataset
 
@@ -121,11 +122,46 @@ class Extractor(object):
         self._max_ext = max_ext
 
     def __call__(self, raw_article_sents):
-        with torch.no_grad():
-            self._net.eval()
-            n_art = len(raw_article_sents)
-            articles = conver2id(UNK, self._word2id, raw_article_sents)
-            article = pad_batch_tensorize(articles, PAD, cuda=False
-                                         ).to(self._device)
-            indices = self._net.extract([article], k=min(n_art, self._max_ext))
+        self._net.eval()
+        n_art = len(raw_article_sents)
+        articles = conver2id(UNK, self._word2id, raw_article_sents)
+        article = pad_batch_tensorize(articles, PAD, cuda=False
+                                     ).to(self._device)
+        indices = self._net.extract([article], k=min(n_art, self._max_ext))
+        return indices
+
+
+class ArticleBatcher(object):
+    def __init__(self, word2id, cuda=True):
+        self._device = torch.device('cuda' if cuda else 'cpu')
+        self._word2id = word2id
+        self._device = torch.device('cuda' if cuda else 'cpu')
+
+    def __call__(self, raw_article_sents):
+        articles = conver2id(UNK, self._word2id, raw_article_sents)
+        article = pad_batch_tensorize(articles, PAD, cuda=False
+                                     ).to(self._device)
+        return article
+
+class RLExtractor(object):
+    def __init__(self, ext_dir, cuda=True):
+        ext_meta = json.load(open(join(ext_dir, 'meta.json')))
+        assert ext_meta['net'] == 'rnn-ext_abs_rl'
+        ext_args = ext_meta['net_args']['extractor']['net_args']
+        word2id = pkl.load(open(join(ext_dir, 'agent_vocab.pkl'), 'rb'))
+        extractor = PtrExtractSumm(**ext_args)
+        agent = ActorCritic(extractor._sent_enc,
+                            extractor._art_enc,
+                            extractor._extractor,
+                            ArticleBatcher(word2id, cuda))
+        ext_ckpt = load_best_ckpt(ext_dir, reverse=True)
+        agent.load_state_dict(ext_ckpt)
+        self._device = torch.device('cuda' if cuda else 'cpu')
+        self._net = agent.to(self._device)
+        self._word2id = word2id
+        self._id2word = {i: w for w, i in word2id.items()}
+
+    def __call__(self, raw_article_sents):
+        self._net.eval()
+        indices = self._net(raw_article_sents)
         return indices
