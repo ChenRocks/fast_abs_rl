@@ -6,6 +6,7 @@ from time import time
 from datetime import timedelta
 
 from utils import count_data
+from decoding import make_html_safe
 
 try:
     DATA_DIR = os.environ['DATA']
@@ -26,8 +27,8 @@ def dump(split):
         with open(join(data_dir, '{}.json'.format(i))) as f:
             data = json.loads(f.read())
         abs_sents = data['abstract']
-        with open(join(dump_dir, '{}.txt'.format(i)), 'w') as f:
-            f.write('\n'.join(abs_sents))
+        with open(join(dump_dir, '{}.ref'.format(i)), 'w') as f:
+            f.write(make_html_safe('\n'.join(abs_sents)))
     print('finished in {}'.format(timedelta(seconds=time()-start)))
 
 def main():

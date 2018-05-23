@@ -1,9 +1,8 @@
 """ run decoding of X-ext (+ abs)"""
 import argparse
 import json
-import re
 import os
-from os.path import join, exists
+from os.path import join
 from datetime import timedelta
 from time import time
 
