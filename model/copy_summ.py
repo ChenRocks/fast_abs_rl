@@ -6,6 +6,7 @@ from torch.nn import functional as F
 from .attention import step_attention
 from .util import len_mask
 from .summ import Seq2SeqSumm, AttentionalLSTMDecoder
+from . import beam_search as bs
 
 
 INIT = 1e-2
@@ -26,9 +27,9 @@ class _CopyLinear(nn.Module):
             self.regiser_module(None, '_b')
 
     def forward(self, context, state, input_):
-        output = (torch.mm(context, self._v_c.unsqueeze(1))
-                  + torch.mm(state, self._v_s.unsqueeze(1))
-                  + torch.mm(input_, self._v_i.unsqueeze(1)))
+        output = (torch.matmul(context, self._v_c.unsqueeze(1))
+                  + torch.matmul(state, self._v_s.unsqueeze(1))
+                  + torch.matmul(input_, self._v_i.unsqueeze(1)))
         if self._b is not None:
             output = output + self._b.unsqueeze(0)
         return output
@@ -93,6 +94,83 @@ class CopySumm(Seq2SeqSumm):
                 tok[0, 0] = unk
         return outputs, attns
 
+    def batched_beamsearch(self, article, art_lens,
+                           extend_art, extend_vsize,
+                           go, eos, unk, max_len, beam_size, diverse=1.0):
+        batch_size = len(art_lens)
+        vsize = self._embedding.num_embeddings
+        attention, init_dec_states = self.encode(article, art_lens)
+        mask = len_mask(art_lens, attention.get_device()).unsqueeze(-2)
+        all_attention = (attention, mask, extend_art, extend_vsize)
+        attention = all_attention
+        (h, c), prev = init_dec_states
+        all_beams = [bs.init_beam(go, (h[:, i, :], c[:, i, :], prev[i]))
+                     for i in range(batch_size)]
+        finished_beams = [[] for _ in range(batch_size)]
+        outputs = [None for _ in range(batch_size)]
+        for t in range(max_len):
+            toks = []
+            all_states = []
+            for beam in filter(bool, all_beams):
+                token, states = bs.pack_beam(beam, article.get_device())
+                toks.append(token)
+                all_states.append(states)
+            token = torch.stack(toks, dim=1)
+            states = ((torch.stack([h for (h, _), _ in all_states], dim=2),
+                       torch.stack([c for (_, c), _ in all_states], dim=2)),
+                      torch.stack([prev for _, prev in all_states], dim=1))
+            token.masked_fill_(token >= vsize, unk)
+
+            topk, lp, states, attn_score = self._decoder.topk_step(
+                token, states, attention, beam_size)
+
+            batch_i = 0
+            for i, (beam, finished) in enumerate(zip(all_beams,
+                                                     finished_beams)):
+                if not beam:
+                    continue
+                finished, new_beam = bs.next_search_beam(
+                    beam, beam_size, finished, eos,
+                    topk[:, batch_i, :], lp[:, batch_i, :],
+                    (states[0][0][:, :, batch_i, :],
+                     states[0][1][:, :, batch_i, :],
+                     states[1][:, batch_i, :]),
+                    attn_score[:, batch_i, :],
+                    diverse
+                )
+                batch_i += 1
+                if len(finished) >= beam_size:
+                    all_beams[i] = []
+                    outputs[i] = finished[:beam_size]
+                    # exclude finished inputs
+                    (attention, mask, extend_art, extend_vsize
+                    ) = all_attention
+                    masks = [mask[j] for j, o in enumerate(outputs)
+                             if o is None]
+                    ind = [j for j, o in enumerate(outputs) if o is None]
+                    ind = torch.LongTensor(ind).to(attention.get_device())
+                    attention, extend_art = map(
+                        lambda v: v.index_select(dim=0, index=ind),
+                        [attention, extend_art]
+                    )
+                    if masks:
+                        mask = torch.stack(masks, dim=0)
+                    else:
+                        mask = None
+                    attention = (
+                        attention, mask, extend_art, extend_vsize)
+                else:
+                    all_beams[i] = new_beam
+                    finished_beams[i] = finished
+            if all(outputs):
+                break
+        else:
+            for i, (o, f, b) in enumerate(zip(outputs,
+                                              finished_beams, all_beams)):
+                if o is None:
+                    outputs[i] = (f+b)[:beam_size]
+        return outputs
+
 
 class CopyLSTMDecoder(AttentionalLSTMDecoder):
     def __init__(self, copy, *args, **kwargs):
@@ -126,6 +204,49 @@ class CopyLSTMDecoder(AttentionalLSTMDecoder):
                 source=score * copy_prob
         ) + 1e-8)  # numerical stability for log
         return lp, (states, dec_out), score
+
+
+    def topk_step(self, tok, states, attention, k):
+        """tok:[BB, B], states ([L, BB, B, D]*2, [BB, B, D])"""
+        (h, c), prev_out = states
+
+        # lstm is not bemable
+        nl, _, _, d = h.size()
+        beam, batch = tok.size()
+        lstm_in_beamable = torch.cat(
+            [self._embedding(tok), prev_out], dim=-1)
+        lstm_in = lstm_in_beamable.contiguous().view(beam*batch, -1)
+        prev_states = (h.contiguous().view(nl, -1, d),
+                       c.contiguous().view(nl, -1, d))
+        h, c = self._lstm(lstm_in, prev_states)
+        states = (h.contiguous().view(nl, beam, batch, -1),
+                  c.contiguous().view(nl, beam, batch, -1))
+        lstm_out = states[0][-1]
+
+        # attention is beamable
+        query = torch.matmul(lstm_out, self._attn_w)
+        attention, attn_mask, extend_src, extend_vsize = attention
+        context, score = step_attention(
+            query, attention, attention, attn_mask)
+        dec_out = self._projection(torch.cat([lstm_out, context], dim=-1))
+
+        # copy mechanism is not beamable
+        gen_prob = self._compute_gen_prob(
+            dec_out.contiguous().view(batch*beam, -1), extend_vsize)
+        copy_prob = torch.sigmoid(
+            self._copy(context, lstm_out, lstm_in_beamable)
+        ).contiguous().view(-1, 1)
+        lp = torch.log(
+            ((-copy_prob + 1) * gen_prob
+            ).scatter_add(
+                dim=1,
+                index=extend_src.expand_as(score).contiguous().view(
+                    beam*batch, -1),
+                source=score.contiguous().view(beam*batch, -1) * copy_prob
+        ) + 1e-8).contiguous().view(beam, batch, -1)
+
+        k_lp, k_tok = lp.topk(k=k, dim=-1)
+        return k_tok, k_lp, (states, dec_out), score
 
     def _compute_gen_prob(self, dec_out, extend_vsize, eps=1e-6):
         logit = torch.mm(dec_out, self._embedding.weight.t())
