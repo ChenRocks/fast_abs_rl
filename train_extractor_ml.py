@@ -189,7 +189,7 @@ if __name__ == '__main__':
     # model options
     parser.add_argument('--net-type', action='store', required=True,
                         help='model type of the extractor (ff/rnn)')
-    parser.add_argument('--vsize', type=int, action='store', default=10000,
+    parser.add_argument('--vsize', type=int, action='store', default=30000,
                         help='vocabulary size')
     parser.add_argument('--emb_dim', type=int, action='store', default=128,
                         help='the dimension of word embedding')
