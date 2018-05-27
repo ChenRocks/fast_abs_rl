@@ -26,5 +26,5 @@ def step_attention(query, key, value, mem_mask=None):
         norm_score = F.softmax(score, dim=-1)
     else:
         norm_score = prob_normalize(score, mem_mask)
-    output = attention_aggregate(value, score)
+    output = attention_aggregate(value, norm_score)
     return output.squeeze(-2), norm_score.squeeze(-2)
