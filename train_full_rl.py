@@ -14,12 +14,11 @@ from torch import optim
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import DataLoader
 
-from utils import PAD, UNK
-from data.batcher import conver2id, pad_batch_tensorize
+from data.data import CnnDmDataset
+from data.batcher import tokenize
 
 from model.rl import ActorCritic
 from model.extract import PtrExtractSumm
-from data.batcher import tokenize
 
 from training import BasicTrainer
 from rl import get_grad_fn
