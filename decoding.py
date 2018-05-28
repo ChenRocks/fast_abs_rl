@@ -4,6 +4,9 @@ import re
 import os
 from os.path import join
 import pickle as pkl
+from itertools import starmap
+
+from cytoolz import curry
 
 import torch
 
@@ -65,8 +68,7 @@ class Abstractor(object):
         self._id2word = {i: w for w, i in word2id.items()}
         self._max_len = max_len
 
-    def __call__(self, raw_article_sents):
-        self._net.eval()
+    def _prepro(self, raw_article_sents):
         ext_word2id = dict(self._word2id)
         ext_id2word = dict(self._id2word)
         for raw_words in raw_article_sents:
@@ -84,9 +86,14 @@ class Abstractor(object):
         extend_vsize = len(ext_word2id)
         dec_args = (article, art_lens, extend_art, extend_vsize,
                     START, END, UNK, self._max_len)
+        return dec_args, ext_id2word
+
+    def __call__(self, raw_article_sents):
+        self._net.eval()
+        dec_args, id2word = self._prepro(raw_article_sents)
+        decs, attns = self._net.batch_decode(*dec_args)
         def argmax(arr, keys):
             return arr[max(range(len(arr)), key=lambda i: keys[i].item())]
-        decs, attns = self._net.batch_decode(*dec_args)
         dec_sents = []
         for i, raw_words in enumerate(raw_article_sents):
             dec = []
@@ -96,9 +103,36 @@ class Abstractor(object):
                 elif id_[i] == UNK:
                     dec.append(argmax(raw_words, attn[i]))
                 else:
-                    dec.append(ext_id2word[id_[i].item()])
+                    dec.append(id2word[id_[i].item()])
             dec_sents.append(dec)
         return dec_sents
+
+
+class BeamAbstractor(Abstractor):
+    def __call__(self, raw_article_sents, beam_size=5, diverse=1.0):
+        self._net.eval()
+        dec_args, id2word = self._prepro(raw_article_sents)
+        dec_args = (*dec_args, beam_size, diverse)
+        all_beams = self._net.batched_beamsearch(*dec_args)
+        all_beams = list(starmap(_process_beam(id2word),
+                                 zip(all_beams, raw_article_sents)))
+        return all_beams
+
+@curry
+def _process_beam(id2word, beam, art_sent):
+    def process_hyp(hyp):
+        seq = []
+        for i, attn in zip(hyp.sequence[1:], hyp.attns[:-1]):
+            if i == UNK:
+                art_sent[max(range(len(art_sent)),
+                             key=lambda j: attn[j].item())]
+            else:
+                seq.append(id2word[i])
+        hyp.sequence = seq
+        del hyp.hists
+        del hyp.attns
+        return hyp
+    return list(map(process_hyp, beam))
 
 
 class Extractor(object):
