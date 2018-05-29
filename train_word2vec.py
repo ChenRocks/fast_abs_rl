@@ -63,7 +63,7 @@ if __name__ == '__main__':
         description='train word2vec embedding used for model initialization'
     )
     parser.add_argument('--path', required=True, help='root of the model')
-    parser.add_argument('--dim', action='store', type=int, required=True)
+    parser.add_argument('--dim', action='store', type=int, default=128)
     args = parser.parse_args()
 
     main(args)

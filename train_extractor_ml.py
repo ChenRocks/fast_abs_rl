@@ -186,7 +186,7 @@ if __name__ == '__main__':
     parser.add_argument('--path', required=True, help='root of the model')
 
     # model options
-    parser.add_argument('--net-type', action='store', required=True,
+    parser.add_argument('--net-type', action='store', default='rnn',
                         help='model type of the extractor (ff/rnn)')
     parser.add_argument('--vsize', type=int, action='store', default=30000,
                         help='vocabulary size')
