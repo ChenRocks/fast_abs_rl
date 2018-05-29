@@ -36,7 +36,7 @@ def main(args):
     logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s',
                         level=logging.INFO)
     start = time()
-    save_dir = join(DATA_DIR, 'embedding')
+    save_dir = args.path
     if not exists(save_dir):
         os.makedirs(save_dir)
 
@@ -62,6 +62,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description='train word2vec embedding used for model initialization'
     )
+    parser.add_argument('--path', required=True, help='root of the model')
     parser.add_argument('--dim', action='store', type=int, required=True)
     args = parser.parse_args()
 
