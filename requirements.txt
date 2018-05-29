@@ -1,0 +1,5 @@
+pytorch=0.4.0
+gensim
+tensorboardX
+cytoolz
+pyrouge
