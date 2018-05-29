@@ -19,7 +19,7 @@ from data.data import CnnDmDataset
 
 
 try:
-    DATASET_DIR = os.environ['DATASET']
+    DATASET_DIR = os.environ['DATA']
 except KeyError:
     print('please use environment variable to specify data directories')
 

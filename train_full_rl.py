@@ -32,7 +32,6 @@ MAX_ABS_LEN = 30
 
 try:
     DATA_DIR = os.environ['DATA']
-    DATASET_DIR = os.environ['DATASET']
 except KeyError:
     print('please use environment variable to specify data directories')
 
@@ -40,7 +39,7 @@ except KeyError:
 class RLDataset(CnnDmDataset):
     """ get the article sentences only (for decoding use)"""
     def __init__(self, split):
-        super().__init__(split, DATASET_DIR)
+        super().__init__(split, DATA_DIR)
 
     def __getitem__(self, i):
         js_data = super().__getitem__(i)
