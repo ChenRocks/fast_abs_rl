@@ -89,8 +89,6 @@ def label(split):
 
 def main():
     for split in ['val', 'train']:  # no need of extraction label when testing
-        if not exists(join(DUMP_DIR, split)):
-            os.makedirs(join(DUMP_DIR, split))
         label_mp(split)
 
 if __name__ == '__main__':
