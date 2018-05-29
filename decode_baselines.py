@@ -17,10 +17,6 @@ from decoding import Abstractor, Extractor, DecodeDataset
 from decoding import make_html_safe
 
 
-# FIXME
-MAX_ART_LEN = 200  # TODO
-MAX_ART_NUM = 60
-
 MAX_ABS_NUM = 6  # need to set max sentences to extract for non-RL extractor
 
 
@@ -41,7 +37,6 @@ def decode(save_path, abs_dir, ext_dir, split, batch_size, max_len, cuda):
         extractor = Extractor(ext_dir, max_ext=MAX_ABS_NUM, cuda=cuda)
 
     # setup loader
-    # TODO
     def coll(batch):
         articles = list(filter(bool, batch))
         return articles
