@@ -49,7 +49,6 @@ def decode(save_path, abs_dir, ext_dir, split, batch_size, max_len, cuda):
     )
 
     # prepare save paths and logs
-    save_path = join(save_path, split)
     for i in range(MAX_ABS_NUM):
         os.makedirs(join(save_path, 'output_{}'.format(i)))
     dec_log = {}

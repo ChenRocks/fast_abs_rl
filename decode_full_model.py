@@ -55,7 +55,6 @@ def decode(save_path, model_dir, split, batch_size,
     )
 
     # prepare save paths and logs
-    save_path = join(save_path, split)
     os.makedirs(join(save_path, 'output'))
     dec_log = {}
     dec_log['abstractor'] = meta['net_args']['abstractor']
