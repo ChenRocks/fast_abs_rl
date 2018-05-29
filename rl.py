@@ -146,8 +146,8 @@ class A2CPipeline(BasicPipeline):
                  stop_reward_fn, stop_coeff):
         self.name = name
         self._net = net
-        self._train_batcher = train_batcher  # TODO
-        self._val_batcher = val_batcher  # TODO
+        self._train_batcher = train_batcher
+        self._val_batcher = val_batcher
         self._opt = optim
         self._grad_fn = grad_fn
 

@@ -14,7 +14,6 @@ from metric import compute_rouge_l
 
 try:
     DATA_DIR = os.environ['DATA']
-    DUMP_DIR = os.environ['DATASET']
 except KeyError:
     print('please use environment variable to specify data directories')
 
@@ -42,7 +41,6 @@ def get_extract_label(art_sents, abs_sents):
 @curry
 def process(split, i):
     data_dir = join(DATA_DIR, split)
-    dump_dir = join(DUMP_DIR, split)
     with open(join(data_dir, '{}.json'.format(i))) as f:
         data = json.loads(f.read())
     tokenize = compose(list, _split_words)
@@ -54,7 +52,7 @@ def process(split, i):
         extracted, scores = [], []
     data['extracted'] = extracted
     data['score'] = scores
-    with open(join(dump_dir, '{}.json'.format(i)), 'w') as f:
+    with open(join(data_dir, '{}.json'.format(i)), 'w') as f:
         json.dump(data, f, indent=4)
 
 def label_mp(split):
@@ -72,7 +70,6 @@ def label(split):
     start = time()
     print('start processing {} split...'.format(split))
     data_dir = join(DATA_DIR, split)
-    dump_dir = join(DUMP_DIR, split)
     n_data = count_data(data_dir)
     for i in range(n_data):
         print('processing {}/{} ({:.2f}%%)\r'.format(i, n_data, 100*i/n_data),
@@ -85,15 +82,13 @@ def label(split):
         extracted, scores = get_extract_label(art_sents, abs_sents)
         data['extracted'] = extracted
         data['score'] = scores
-        with open(join(dump_dir, '{}.json'.format(i)), 'w') as f:
+        with open(join(data_dir, '{}.json'.format(i)), 'w') as f:
             json.dump(data, f, indent=4)
     print('finished in {}'.format(timedelta(seconds=time()-start)))
 
 
 def main():
     for split in ['val', 'train']:  # no need of extraction label when testing
-        if not exists(join(DUMP_DIR, split)):
-            os.makedirs(join(DUMP_DIR, split))
         label_mp(split)
 
 if __name__ == '__main__':

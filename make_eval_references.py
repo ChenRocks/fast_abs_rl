@@ -10,7 +10,6 @@ from decoding import make_html_safe
 
 try:
     DATA_DIR = os.environ['DATA']
-    DUMP_DIR = os.environ['DATASET']
 except KeyError:
     print('please use environment variable to specify data directories')
 
@@ -19,7 +18,7 @@ def dump(split):
     start = time()
     print('start processing {} split...'.format(split))
     data_dir = join(DATA_DIR, split)
-    dump_dir = join(DUMP_DIR, 'refs', split)
+    dump_dir = join(DATA_DIR, 'refs', split)
     n_data = count_data(data_dir)
     for i in range(n_data):
         print('processing {}/{} ({:.2f}%%)\r'.format(i, n_data, 100*i/n_data),
@@ -33,8 +32,8 @@ def dump(split):
 
 def main():
     for split in ['val', 'test']:  # evaluation of train data takes too long
-        if not exists(join(DUMP_DIR, 'refs', split)):
-            os.makedirs(join(DUMP_DIR, 'refs', split))
+        if not exists(join(DATA_DIR, 'refs', split)):
+            os.makedirs(join(DATA_DIR, 'refs', split))
         dump(split)
 
 if __name__ == '__main__':

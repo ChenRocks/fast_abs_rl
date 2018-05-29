@@ -32,7 +32,6 @@ BUCKET_SIZE = 6400
 
 try:
     DATA_DIR = os.environ['DATA']
-    DATASET_DIR = os.environ['DATASET']
 except KeyError:
     print('please use environment variable to specify data directories')
 
@@ -41,7 +40,7 @@ class ExtractDataset(CnnDmDataset):
     (dataset created by greedily matching ROUGE)
     """
     def __init__(self, split):
-        super().__init__(split, DATASET_DIR)
+        super().__init__(split, DATA_DIR)
 
     def __getitem__(self, i):
         js_data = super().__getitem__(i)
@@ -187,7 +186,7 @@ if __name__ == '__main__':
     parser.add_argument('--path', required=True, help='root of the model')
 
     # model options
-    parser.add_argument('--net-type', action='store', required=True,
+    parser.add_argument('--net-type', action='store', default='rnn',
                         help='model type of the extractor (ff/rnn)')
     parser.add_argument('--vsize', type=int, action='store', default=30000,
                         help='vocabulary size')

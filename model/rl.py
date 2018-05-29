@@ -51,7 +51,6 @@ class PtrExtractorRL(nn.Module):
                 prob = F.softmax(score, dim=-1)
                 out = torch.distributions.Categorical(prob)
             else:
-                # TODO check .item() migration
                 for o in outputs:
                     score[0, o[0, 0].item()][0] = -1e18
                 out = score.max(dim=1, keepdim=True)[1]
@@ -108,7 +107,6 @@ class PtrExtractorRLStop(PtrExtractorRL):
                                                 self._hop_v, self._hop_wq)
             score = PtrExtractorRL.attention_score(
                 attn_feat, query, self._attn_v, self._attn_wq)
-            # TODO check .item() migration
             for o in outputs:
                 score[0, o.item()] = -1e18
             if self.training:
@@ -119,7 +117,6 @@ class PtrExtractorRLStop(PtrExtractorRL):
             else:
                 out = score.max(dim=1, keepdim=True)[1]
             outputs.append(out)
-            # FIXME
             if out.item() == max_step:
                 break
             lstm_in = attn_mem[out.item()].unsqueeze(0)

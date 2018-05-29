@@ -55,7 +55,6 @@ def decode(save_path, model_dir, split, batch_size,
     )
 
     # prepare save paths and logs
-    save_path = join(save_path, split)
     os.makedirs(join(save_path, 'output'))
     dec_log = {}
     dec_log['abstractor'] = meta['net_args']['abstractor']
@@ -144,8 +143,10 @@ if __name__ == '__main__':
     parser.add_argument('--path', required=True, help='path to store/eval')
     parser.add_argument('--model_dir', help='root of the full model')
 
-    # data
-    parser.add_argument('--test', action='store_true', help='use test set')
+    # dataset split
+    data = parser.add_mutually_exclusive_group(required=True)
+    data.add_argument('--val', action='store_true', help='use validation set')
+    data.add_argument('--test', action='store_true', help='use test set')
 
     # decode options
     parser.add_argument('--batch', type=int, action='store', default=32,

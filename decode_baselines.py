@@ -17,10 +17,6 @@ from decoding import Abstractor, Extractor, DecodeDataset
 from decoding import make_html_safe
 
 
-# FIXME
-MAX_ART_LEN = 200  # TODO
-MAX_ART_NUM = 60
-
 MAX_ABS_NUM = 6  # need to set max sentences to extract for non-RL extractor
 
 
@@ -41,7 +37,6 @@ def decode(save_path, abs_dir, ext_dir, split, batch_size, max_len, cuda):
         extractor = Extractor(ext_dir, max_ext=MAX_ABS_NUM, cuda=cuda)
 
     # setup loader
-    # TODO
     def coll(batch):
         articles = list(filter(bool, batch))
         return articles
@@ -54,7 +49,6 @@ def decode(save_path, abs_dir, ext_dir, split, batch_size, max_len, cuda):
     )
 
     # prepare save paths and logs
-    save_path = join(save_path, split)
     for i in range(MAX_ABS_NUM):
         os.makedirs(join(save_path, 'output_{}'.format(i)))
     dec_log = {}
@@ -105,8 +99,10 @@ if __name__ == '__main__':
     parser.add_argument('--abs_dir', help='root of the abstractor model')
     parser.add_argument('--ext_dir', help='root of the extractor model')
 
-    # data
-    parser.add_argument('--test', action='store_true', help='use test set')
+    # dataset split
+    data = parser.add_mutually_exclusive_group(required=True)
+    data.add_argument('--val', action='store_true', help='use validation set')
+    data.add_argument('--test', action='store_true', help='use test set')
 
     # decode options
     parser.add_argument('--batch', type=int, action='store', default=32,
