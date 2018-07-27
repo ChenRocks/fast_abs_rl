@@ -32,7 +32,7 @@ def compute_rouge_n(output, reference, n=1, mode='f'):
         f_score = 2 * (precision * recall) / (precision + recall)
         if mode == 'p':
             score = precision
-        if mode == 'r':
+        elif mode == 'r':
             score = recall
         else:
             score = f_score
