@@ -131,7 +131,7 @@ class ExtractSumm(nn.Module):
                 z = torch.zeros(n, self._art_enc.input_size).to(device)
                 return z
             enc_sent = torch.stack(
-                [torch.cat([s, zero(max_n-n, s.get_device())],
+                [torch.cat([s, zero(max_n-n, s.device)],
                            dim=0) if n != max_n
                  else s
                  for s, n in zip(enc_sents, sent_nums)],
@@ -199,7 +199,7 @@ class LSTMPointerNet(nn.Module):
         lstm_in = lstm_in.squeeze(1)
         if self._lstm_cell is None:
             self._lstm_cell = MultiLayerLSTMCells.convert(
-                self._lstm).to(attn_mem.get_device())
+                self._lstm).to(attn_mem.device)
         extracts = []
         for _ in range(k):
             h, c = self._lstm_cell(lstm_in, lstm_states)
@@ -248,7 +248,7 @@ class LSTMPointerNet(nn.Module):
         if mem_sizes is None:
             norm_score = F.softmax(score, dim=-1)
         else:
-            mask = len_mask(mem_sizes, score.get_device()).unsqueeze(-2)
+            mask = len_mask(mem_sizes, score.device).unsqueeze(-2)
             norm_score = prob_normalize(score, mask)
         output = torch.matmul(norm_score, attention)
         return output
@@ -298,7 +298,7 @@ class PtrExtractSumm(nn.Module):
                 z = torch.zeros(n, self._art_enc.input_size).to(device)
                 return z
             enc_sent = torch.stack(
-                [torch.cat([s, zero(max_n-n, s.get_device())], dim=0)
+                [torch.cat([s, zero(max_n-n, s.device)], dim=0)
                    if n != max_n
                  else s
                  for s, n in zip(enc_sents, sent_nums)],
