@@ -24,7 +24,7 @@ def lstm_encoder(sequence, lstm,
                                         lstm.batch_first)
 
     if init_states is None:
-        device = sequence.get_device()
+        device = sequence.device
         init_states = init_lstm_states(lstm, batch_size, device)
     else:
         init_states = (init_states[0].contiguous(),
