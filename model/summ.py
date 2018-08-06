@@ -62,7 +62,7 @@ class Seq2SeqSumm(nn.Module):
 
     def forward(self, article, art_lens, abstract):
         attention, init_dec_states = self.encode(article, art_lens)
-        mask = len_mask(art_lens, attention.get_device()).unsqueeze(-2)
+        mask = len_mask(art_lens, attention.device).unsqueeze(-2)
         logit = self._decoder((attention, mask), init_dec_states, abstract)
         return logit
 
@@ -101,9 +101,9 @@ class Seq2SeqSumm(nn.Module):
         """ greedy decode support batching"""
         batch_size = len(art_lens)
         attention, init_dec_states = self.encode(article, art_lens)
-        mask = len_mask(art_lens, attention.get_device()).unsqueeze(-2)
+        mask = len_mask(art_lens, attention.device).unsqueeze(-2)
         attention = (attention, mask)
-        tok = torch.LongTensor([go]*batch_size).to(article.get_device())
+        tok = torch.LongTensor([go]*batch_size).to(article.device)
         outputs = []
         attns = []
         states = init_dec_states
@@ -117,7 +117,7 @@ class Seq2SeqSumm(nn.Module):
     def decode(self, article, go, eos, max_len):
         attention, init_dec_states = self.encode(article)
         attention = (attention, None)
-        tok = torch.LongTensor([go]).to(article.get_device())
+        tok = torch.LongTensor([go]).to(article.device)
         outputs = []
         attns = []
         states = init_dec_states

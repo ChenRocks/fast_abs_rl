@@ -48,7 +48,7 @@ class CopySumm(Seq2SeqSumm):
 
     def forward(self, article, art_lens, abstract, extend_art, extend_vsize):
         attention, init_dec_states = self.encode(article, art_lens)
-        mask = len_mask(art_lens, attention.get_device()).unsqueeze(-2)
+        mask = len_mask(art_lens, attention.device).unsqueeze(-2)
         logit = self._decoder(
             (attention, mask, extend_art, extend_vsize),
             init_dec_states, abstract
@@ -61,9 +61,9 @@ class CopySumm(Seq2SeqSumm):
         batch_size = len(art_lens)
         vsize = self._embedding.num_embeddings
         attention, init_dec_states = self.encode(article, art_lens)
-        mask = len_mask(art_lens, attention.get_device()).unsqueeze(-2)
+        mask = len_mask(art_lens, attention.device).unsqueeze(-2)
         attention = (attention, mask, extend_art, extend_vsize)
-        tok = torch.LongTensor([go]*batch_size).to(article.get_device())
+        tok = torch.LongTensor([go]*batch_size).to(article.device)
         outputs = []
         attns = []
         states = init_dec_states
@@ -79,7 +79,7 @@ class CopySumm(Seq2SeqSumm):
         vsize = self._embedding.num_embeddings
         attention, init_dec_states = self.encode(article)
         attention = (attention, None, extend_art, extend_vsize)
-        tok = torch.LongTensor([go]).to(article.get_device())
+        tok = torch.LongTensor([go]).to(article.device)
         outputs = []
         attns = []
         states = init_dec_states
@@ -100,7 +100,7 @@ class CopySumm(Seq2SeqSumm):
         batch_size = len(art_lens)
         vsize = self._embedding.num_embeddings
         attention, init_dec_states = self.encode(article, art_lens)
-        mask = len_mask(art_lens, attention.get_device()).unsqueeze(-2)
+        mask = len_mask(art_lens, attention.device).unsqueeze(-2)
         all_attention = (attention, mask, extend_art, extend_vsize)
         attention = all_attention
         (h, c), prev = init_dec_states
@@ -112,7 +112,7 @@ class CopySumm(Seq2SeqSumm):
             toks = []
             all_states = []
             for beam in filter(bool, all_beams):
-                token, states = bs.pack_beam(beam, article.get_device())
+                token, states = bs.pack_beam(beam, article.device)
                 toks.append(token)
                 all_states.append(states)
             token = torch.stack(toks, dim=1)
@@ -148,7 +148,7 @@ class CopySumm(Seq2SeqSumm):
                     masks = [mask[j] for j, o in enumerate(outputs)
                              if o is None]
                     ind = [j for j, o in enumerate(outputs) if o is None]
-                    ind = torch.LongTensor(ind).to(attention.get_device())
+                    ind = torch.LongTensor(ind).to(attention.device)
                     attention, extend_art = map(
                         lambda v: v.index_select(dim=0, index=ind),
                         [attention, extend_art]
@@ -253,7 +253,7 @@ class CopyLSTMDecoder(AttentionalLSTMDecoder):
         bsize, vsize = logit.size()
         if extend_vsize > vsize:
             ext_logit = torch.Tensor(bsize, extend_vsize-vsize
-                                    ).to(logit.get_device())
+                                    ).to(logit.device)
             ext_logit.fill_(eps)
             gen_logit = torch.cat([logit, ext_logit], dim=1)
         else:
