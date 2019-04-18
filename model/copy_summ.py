@@ -24,7 +24,7 @@ class _CopyLinear(nn.Module):
         if bias:
             self._b = nn.Parameter(torch.zeros(1))
         else:
-            self.regiser_module(None, '_b')
+            self.register_parameter(None, '_b')
 
     def forward(self, context, state, input_):
         output = (torch.matmul(context, self._v_c.unsqueeze(1))
