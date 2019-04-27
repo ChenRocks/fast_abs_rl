@@ -227,9 +227,10 @@ class BucketedGenerater(object):
                 # random shuffle for training batches
                 random.shuffle(hyper_batch)
                 random.shuffle(indexes)
-            hyper_batch.sort(key=self._sort_key)
             for i in indexes:
-                batch = self._batchify(hyper_batch[i:i+batch_size])
+                batch = hyper_batch[i:i+batch_size]
+                batch.sort(key=self._sort_key)
+                batch = self._batchify(batch)
                 yield batch
 
         if self._queue is not None:
