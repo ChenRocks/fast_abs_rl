@@ -1,4 +1,4 @@
-name: python3.6
+name: summ
 channels:
 - pytorch
 - defaults
