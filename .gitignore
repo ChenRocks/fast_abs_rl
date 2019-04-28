@@ -3,3 +3,4 @@ val
 word_vectors
 **/__pycache__
 output
+**/*.pkl
