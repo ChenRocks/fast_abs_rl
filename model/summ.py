@@ -10,15 +10,12 @@ from .util import sequence_mean, len_mask
 
 INIT = 1e-2
 
-
-class Seq2SeqSumm(nn.Module):
-    def __init__(self, vocab_size, emb_dim,
-                 n_hidden, bidirectional, n_layer, dropout=0.0):
+class RNNEncoder(nn.Module):
+    def __init__(self, vocab_size, emb_dim, n_hidden, bidirectional, n_layer, dropout=0.0):
         super().__init__()
-        # embedding weight parameter is shared between encoder, decoder,
-        # and used as final projection layer to vocab logit
-        # can initialize with pretrained word vectors
+
         self._embedding = nn.Embedding(vocab_size, emb_dim, padding_idx=0)
+
         self._enc_lstm = nn.LSTM(
             emb_dim, n_hidden, n_layer,
             bidirectional=bidirectional, dropout=dropout
@@ -34,6 +31,49 @@ class Seq2SeqSumm(nn.Module):
         init.uniform_(self._init_enc_h, -INIT, INIT)
         init.uniform_(self._init_enc_c, -INIT, INIT)
 
+        # multiplicative attention
+        enc_out_dim = n_hidden * (2 if bidirectional else 1)
+        self._attn_wm = nn.Parameter(torch.Tensor(enc_out_dim, n_hidden))
+        init.xavier_normal_(self._attn_wm)
+
+    def forward(self, article, art_lens=None):
+        size = (
+            self._init_enc_h.size(0),
+            len(art_lens) if art_lens else 1,
+            self._init_enc_h.size(1)
+        )
+        init_enc_states = (
+            self._init_enc_h.unsqueeze(1).expand(*size),
+            self._init_enc_c.unsqueeze(1).expand(*size)
+        )
+        enc_art, final_states = lstm_encoder(
+            article, self._enc_lstm, art_lens,
+            init_enc_states, self._embedding
+        )
+        if self._enc_lstm.bidirectional:
+            h, c = final_states
+            final_states = (
+                torch.cat(h.chunk(2, dim=0), dim=2),
+                torch.cat(c.chunk(2, dim=0), dim=2)
+            )
+
+        # attention.size: batch, length, hidden
+        attention = torch.matmul(enc_art, self._attn_wm).transpose(0, 1)
+
+        return attention, final_states
+
+class Seq2SeqSumm(nn.Module):
+    def __init__(self, vocab_size, emb_dim,
+                 n_hidden, bidirectional, n_layer, dropout=0.0):
+        super().__init__()
+        # embedding weight parameter is shared between encoder, decoder,
+        # and used as final projection layer to vocab logit
+        # can initialize with pretrained word vectors
+
+        self.encoder = RNNEncoder(vocab_size, emb_dim, n_hidden, bidirectional, n_layer, dropout=0.0)
+
+        self._embedding = self.encoder._embedding
+
         # vanillat lstm / LNlstm
         self._dec_lstm = MultiLayerLSTMCells(
             2*emb_dim, n_hidden, n_layer, dropout=dropout
@@ -43,9 +83,8 @@ class Seq2SeqSumm(nn.Module):
         self._dec_h = nn.Linear(enc_out_dim, n_hidden, bias=False)
         self._dec_c = nn.Linear(enc_out_dim, n_hidden, bias=False)
         # multiplicative attention
-        self._attn_wm = nn.Parameter(torch.Tensor(enc_out_dim, n_hidden))
         self._attn_wq = nn.Parameter(torch.Tensor(n_hidden, n_hidden))
-        init.xavier_normal_(self._attn_wm)
+
         init.xavier_normal_(self._attn_wq)
         # project decoder output to emb_dim, then
         # apply weight matrix from embedding layer
@@ -67,31 +106,13 @@ class Seq2SeqSumm(nn.Module):
         return logit
 
     def encode(self, article, art_lens=None):
-        size = (
-            self._init_enc_h.size(0),
-            len(art_lens) if art_lens else 1,
-            self._init_enc_h.size(1)
-        )
-        init_enc_states = (
-            self._init_enc_h.unsqueeze(1).expand(*size),
-            self._init_enc_c.unsqueeze(1).expand(*size)
-        )
-        enc_art, final_states = lstm_encoder(
-            article, self._enc_lstm, art_lens,
-            init_enc_states, self._embedding
-        )
-        if self._enc_lstm.bidirectional:
-            h, c = final_states
-            final_states = (
-                torch.cat(h.chunk(2, dim=0), dim=2),
-                torch.cat(c.chunk(2, dim=0), dim=2)
-            )
+        attention, final_states = self.encoder(article, art_lens)
+
         init_h = torch.stack([self._dec_h(s)
                               for s in final_states[0]], dim=0)
         init_c = torch.stack([self._dec_c(s)
                               for s in final_states[1]], dim=0)
         init_dec_states = (init_h, init_c)
-        attention = torch.matmul(enc_art, self._attn_wm).transpose(0, 1)
         init_attn_out = self._projection(torch.cat(
             [init_h[-1], sequence_mean(attention, art_lens, dim=1)], dim=1
         ))
