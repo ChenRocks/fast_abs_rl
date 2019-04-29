@@ -81,7 +81,7 @@ def build_batchers(net_type, word2id, cuda, debug):
     return train_batcher, val_batcher
 
 
-def configure_net(net_type, vocab_size, emb_dim, conv_hidden,
+def configure_net(net_type, vocab_size, emb_dim,
                   lstm_hidden, lstm_layer, bidirectional):
     assert net_type in ['ff', 'rnn']
     net_args = {}
@@ -131,7 +131,7 @@ def main(args):
 
     # make net
     net, net_args = configure_net(args.net_type,
-                                  len(word2id), args.emb_dim, args.conv_hidden,
+                                  len(word2id), args.emb_dim,
                                   args.lstm_hidden, args.lstm_layer, args.bi)
     if args.w2v:
         # NOTE: the pretrained embedding having the same dimension
