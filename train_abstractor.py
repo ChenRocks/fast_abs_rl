@@ -109,14 +109,15 @@ def build_batchers(word2id, cuda, debug):
                                     single_run=True, fork=not debug)
     return train_batcher, val_batcher
 
-def main(args):
+def prep_trainer(args, word2id=None):
     # create data batcher, vocabulary
     # batcher
-    with open(join(DATA_DIR, 'vocab_cnt.pkl'), 'rb') as f:
-        wc = pkl.load(f)
-    word2id = make_vocab(wc, args.vsize)
-    train_batcher, val_batcher = build_batchers(word2id,
-                                                args.cuda, args.debug)
+    if word2id is None:
+        with open(join(DATA_DIR, 'vocab_cnt.pkl'), 'rb') as f:
+            wc = pkl.load(f)
+        word2id = make_vocab(wc, args.vsize)
+
+    train_batcher, val_batcher = build_batchers(word2id, args.cuda, args.debug)
 
     # make net
     net, net_args = configure_net(len(word2id), args.emb_dim,
@@ -163,6 +164,11 @@ def main(args):
 
     print('start training with the following hyper-parameters:')
     print(meta)
+
+    return trainer, net
+
+def main(args):
+    trainer, _ = prep_trainer(args)
     trainer.train()
 
 
