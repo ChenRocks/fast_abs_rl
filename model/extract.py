@@ -67,7 +67,7 @@ class InnerAttnEncoder(nn.Module):
         score = self.inner_attn(attention)
 
         # use input as mask, since PAD is 0; size (batch, seq)
-        score = prob_normalize(score.unqueeze(-1), input_)
+        score = prob_normalize(score.squeeze(-1), input_)
         ctx = score.matmul(attention)
         return ctx
 
