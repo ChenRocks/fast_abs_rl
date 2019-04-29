@@ -11,7 +11,7 @@ from .util import sequence_mean, len_mask
 INIT = 1e-2
 
 class RNNEncoder(nn.Module):
-    def __init__(self, vocab_size, emb_dim, n_hidden, bidirectional, n_layer, dropout=0.0):
+    def __init__(self, vocab_size, emb_dim, n_hidden, n_layer, bidirectional, dropout=0.0):
         super().__init__()
 
         self._embedding = nn.Embedding(vocab_size, emb_dim, padding_idx=0)
@@ -75,7 +75,7 @@ class Seq2SeqSumm(nn.Module):
         # and used as final projection layer to vocab logit
         # can initialize with pretrained word vectors
 
-        self.encoder = RNNEncoder(vocab_size, emb_dim, n_hidden, bidirectional, n_layer, dropout=0.0)
+        self.encoder = RNNEncoder(vocab_size, emb_dim, n_hidden, n_layer, bidirectional, dropout=0.0)
 
         self._embedding = self.encoder._embedding
 
