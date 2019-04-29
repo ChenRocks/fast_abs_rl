@@ -31,8 +31,7 @@ def lstm_encoder(sequence, lstm,
                        init_states[1].contiguous())
 
     if seq_lens:
-        packed_seq = nn.utils.rnn.pack_padded_sequence(emb_sequence,
-                                                       seq_lens)
+        packed_seq = nn.utils.rnn.pack_padded_sequence(emb_sequence, seq_lens)
         packed_out, final_states = lstm(packed_seq, init_states)
         lstm_out, _ = nn.utils.rnn.pad_packed_sequence(packed_out)
 

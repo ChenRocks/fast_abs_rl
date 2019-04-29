@@ -56,12 +56,6 @@ class InnerAttnEncoder(nn.Module):
         # hardcode 0 for PAD here
         art_lens = [(b != 0).sum().item() for b in input_]
 
-        print(art_lens)
-        print(input_.size())
-
-        print(art_lens[4])
-        print(input_[4])
-
         # (batch, seq, hidden)
         attention, _ = self.rnn_encoder(input_, art_lens)
         score = self.inner_attn(attention)
