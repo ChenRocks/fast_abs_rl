@@ -14,6 +14,7 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import DataLoader
 
 from model.extract import ExtractSumm, PtrExtractSumm
+from model.summ import RNNEncoder
 from model.util import sequence_loss
 from training import get_basic_grad_fn, basic_validate
 from training import BasicPipeline, BasicTrainer
@@ -86,13 +87,11 @@ def configure_net(net_type, vocab_size, emb_dim, conv_hidden,
     net_args = {}
     net_args['vocab_size']    = vocab_size
     net_args['emb_dim']       = emb_dim
-    net_args['conv_hidden']   = conv_hidden
     net_args['lstm_hidden']   = lstm_hidden
     net_args['lstm_layer']    = lstm_layer
     net_args['bidirectional'] = bidirectional
 
-    net = (ExtractSumm(**net_args) if net_type == 'ff'
-           else PtrExtractSumm(**net_args))
+    net = PtrExtractSumm(**net_args)
     return net, net_args
 
 

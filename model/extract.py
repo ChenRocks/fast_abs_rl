@@ -5,6 +5,7 @@ from torch.nn import functional as F
 
 from .rnn import MultiLayerLSTMCells
 from .rnn import lstm_encoder
+from .summ import RNNEncoder
 from .util import sequence_mean, len_mask
 from .attention import prob_normalize
 
@@ -35,6 +36,44 @@ class ConvSentEncoder(nn.Module):
         """embedding is the weight matrix"""
         assert self._embedding.weight.size() == embedding.size()
         self._embedding.weight.data.copy_(embedding)
+
+class InnerAttnEncoder(nn.Module):
+    """
+    Inner Attention of an RNN encoder
+    """
+    def __init__(self, rnn_encoder, n_hidden):
+        super().__init__()
+        self.rnn_encoder = rnn_encoder
+        self.inner_attn = nn.Sequential(
+            nn.Linear(n_hidden, n_hidden),
+            nn.Tanh(),
+            nn.Linear(n_hidden, 1),
+        )
+
+        self.softmax = nn.Softmax()
+
+    def forward(self, input_, in_lens=None):
+        # hardcode 0 for PAD here
+        art_lens = [(b != 0).sum().item() for b in input_]
+
+        print(art_lens)
+        print(input_.size())
+
+        print(art_lens[4])
+        print(input_[4])
+
+        # (batch, seq, hidden)
+        attention, _ = self.rnn_encoder(input_, art_lens)
+        score = self.inner_attn(attention)
+
+        # use input as mask, since PAD is 0; size (batch, seq)
+        score = prob_normalize(score.unqueeze(-1), input_)
+        ctx = score.matmul(attention)
+        return ctx
+
+    def set_embedding(self, embedding):
+        """embedding is the weight matrix"""
+        self.rnn_encoder.set_embedding(embedding)
 
 
 class LSTMEncoder(nn.Module):
@@ -256,14 +295,19 @@ class LSTMPointerNet(nn.Module):
 
 class PtrExtractSumm(nn.Module):
     """ rnn-ext"""
-    def __init__(self, emb_dim, vocab_size, conv_hidden,
-                 lstm_hidden, lstm_layer, bidirectional,
-                 n_hop=1, dropout=0.0):
+    def __init__(self, vocab_size, emb_dim, lstm_hidden, lstm_layer, bidirectional, n_hop=1, dropout=0.0):
         super().__init__()
-        self._sent_enc = ConvSentEncoder(
-            vocab_size, emb_dim, conv_hidden, dropout)
+
+        encoder = RNNEncoder(vocab_size, emb_dim, lstm_hidden, lstm_layer, bidirectional)
+
+        self._sent_enc = InnerAttnEncoder(encoder, lstm_hidden)
+
+        self.lstm_hidden = lstm_hidden
+        # self._sent_enc = ConvSentEncoder(
+        #     vocab_size, emb_dim, conv_hidden, dropout)
+
         self._art_enc = LSTMEncoder(
-            3*conv_hidden, lstm_hidden, lstm_layer,
+            lstm_hidden, lstm_hidden, lstm_layer,
             dropout=dropout, bidirectional=bidirectional
         )
         enc_out_dim = lstm_hidden * (2 if bidirectional else 1)
@@ -271,6 +315,9 @@ class PtrExtractSumm(nn.Module):
             enc_out_dim, lstm_hidden, lstm_layer,
             dropout, n_hop
         )
+
+    def set_encoder(self, encoder):
+        self._sent_enc = InnerAttnEncoder(encoder, self.lstm_hidden)
 
     def forward(self, article_sents, sent_nums, target):
         enc_out = self._encode(article_sents, sent_nums)

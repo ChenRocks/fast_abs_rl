@@ -62,6 +62,11 @@ class RNNEncoder(nn.Module):
 
         return attention, final_states
 
+    def set_embedding(self, embedding):
+        """embedding is the weight matrix"""
+        assert self._embedding.weight.size() == embedding.size()
+        self._embedding.weight.data.copy_(embedding)
+
 class Seq2SeqSumm(nn.Module):
     def __init__(self, vocab_size, emb_dim,
                  n_hidden, bidirectional, n_layer, dropout=0.0):
