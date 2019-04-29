@@ -62,7 +62,7 @@ class InnerAttnEncoder(nn.Module):
 
         # use input as mask, since PAD is 0; size (batch, seq)
         score = prob_normalize(score.squeeze(-1), input_)
-        ctx = score.matmul(attention)
+        ctx = score.unsqueeze(-2).bmm(attention).squeeze(-2)
         return ctx
 
     def set_embedding(self, embedding):
