@@ -43,8 +43,14 @@ def main(args):
 
   exs_trainer, _ = exs_prep_trainer(exs_args, word2id=word2id, encoder=abs_net.encoder)
 
-  exs_trainer.train()
-  abs_trainer.train()
+  # training generator
+  exs_train_gen = exs_trainer.train_gen('extractor')
+  abs_train_gen = abs_trainer.train_gen('abstractor')
+
+  for exs_end, abs_end in zip(exs_train_gen, abs_train_gen):
+    if exs_end and abs_end:
+      print('Uni Training End')
+      break
 
 
 if __name__ == '__main__':

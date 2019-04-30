@@ -3,4 +3,5 @@ val
 word_vectors
 **/__pycache__
 output
+uni_*
 **/*.pkl

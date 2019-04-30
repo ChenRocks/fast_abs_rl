@@ -219,3 +219,27 @@ class BasicTrainer(object):
             print('Training finised in ', timedelta(seconds=time()-start))
         finally:
             self._pipeline.terminate()
+
+    def train_gen(self, name):
+        try:
+            start = time()
+            print('Start training', name)
+            while True:
+                log_dict = self._pipeline.train_step()
+                self._step += 1
+                self.log(log_dict)
+
+                if self._step % self._ckpt_freq == 0:
+                    stop = self.checkpoint()
+                    if stop:
+                        break
+
+                yield False
+
+            print('Training', name, 'finised in ', timedelta(seconds=time()-start))
+
+            while True:
+                yield True
+
+        finally:
+            self._pipeline.terminate()
