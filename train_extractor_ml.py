@@ -49,7 +49,7 @@ class ExtractDataset(CnnDmDataset):
         return art_sents, extracts
 
 
-def build_batchers(net_type, word2id, cuda, debug):
+def build_batchers(args, net_type, word2id, cuda, debug):
     assert net_type in ['ff', 'rnn']
     prepro = prepro_fn_extract(args.max_word, args.max_sent)
     def sort_key(sample):
@@ -128,15 +128,12 @@ def prep_trainer(args, word2id=None, encoder=None):
             wc = pkl.load(f)
         word2id = make_vocab(wc, args.vsize)
 
-    train_batcher, val_batcher = build_batchers(args.net_type, word2id, args.cuda, args.debug)
+    train_batcher, val_batcher = build_batchers(args, args.net_type, word2id, args.cuda, args.debug)
 
     # make net
     net, net_args = configure_net(args.net_type,
                                   len(word2id), args.emb_dim,
                                   args.lstm_hidden, args.lstm_layer, args.bi)
-
-    if encoder is not None:
-        net.set_encoder(encoder)
 
     if args.w2v:
         # NOTE: the pretrained embedding having the same dimension
@@ -144,6 +141,9 @@ def prep_trainer(args, word2id=None, encoder=None):
         embedding, _ = make_embedding(
             {i: w for w, i in word2id.items()}, args.w2v)
         net.set_embedding(embedding)
+
+    if encoder is not None:
+        net.set_encoder(encoder)
 
     # configure training setting
     criterion, train_params = configure_training(

@@ -81,7 +81,7 @@ def configure_training(opt, lr, clip_grad, lr_decay, batch_size):
 
     return criterion, train_params
 
-def build_batchers(word2id, cuda, debug):
+def build_batchers(args, word2id, cuda, debug):
     prepro = prepro_fn(args.max_art, args.max_abs)
     def sort_key(sample):
         src, target = sample
@@ -117,7 +117,7 @@ def prep_trainer(args, word2id=None):
             wc = pkl.load(f)
         word2id = make_vocab(wc, args.vsize)
 
-    train_batcher, val_batcher = build_batchers(word2id, args.cuda, args.debug)
+    train_batcher, val_batcher = build_batchers(args, word2id, args.cuda, args.debug)
 
     # make net
     net, net_args = configure_net(len(word2id), args.emb_dim,
