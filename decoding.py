@@ -40,16 +40,20 @@ def make_html_safe(s):
     return s.replace("<", "&lt;").replace(">", "&gt;")
 
 
-def load_best_ckpt(model_dir, reverse=False):
+def load_best_ckpt(model_dir, reverse=False,map_location=None):
     """ reverse=False->loss, reverse=True->reward/score"""
+    
     ckpts = os.listdir(join(model_dir, 'ckpt'))
     ckpt_matcher = re.compile('^ckpt-.*-[0-9]*')
-    ckpts = sorted([c for c in ckpts if ckpt_matcher.match(c)],
-                   key=lambda c: float(c.split('-')[1]), reverse=reverse)
+    ckpts = sorted([c for c in ckpts if ckpt_matcher.match(c) if c!=''],key=lambda c: float(c.split('-')[1])) 
     print('loading checkpoint {}...'.format(ckpts[0]))
-    ckpt = torch.load(
-        join(model_dir, 'ckpt/{}'.format(ckpts[0]))
-    )['state_dict']
+    
+    if map_location is not None:
+        ckpt = torch.load(join(model_dir, 'ckpt/{}'.format(ckpts[0])),map_location=map_location)['state_dict']
+    else:
+        ckpt = torch.load(
+            join(model_dir, 'ckpt/{}'.format(ckpts[0])))['state_dict']
+
     return ckpt
 
 
@@ -58,7 +62,10 @@ class Abstractor(object):
         abs_meta = json.load(open(join(abs_dir, 'meta.json')))
         assert abs_meta['net'] == 'base_abstractor'
         abs_args = abs_meta['net_args']
-        abs_ckpt = load_best_ckpt(abs_dir)
+        if not cuda:
+            abs_ckpt = load_best_ckpt(abs_dir,map_location = 'cpu')
+        else:
+            abs_ckpt = load_best_ckpt(abs_dir)
         word2id = pkl.load(open(join(abs_dir, 'vocab.pkl'), 'rb'))
         abstractor = CopySumm(**abs_args)
         abstractor.load_state_dict(abs_ckpt)
@@ -189,7 +196,10 @@ class RLExtractor(object):
                             extractor._art_enc,
                             extractor._extractor,
                             ArticleBatcher(word2id, cuda))
-        ext_ckpt = load_best_ckpt(ext_dir, reverse=True)
+        if not cuda:
+            ext_ckpt = load_best_ckpt(ext_dir, reverse=True, map_location='cpu')
+        else:
+            ext_ckpt = load_best_ckpt(ext_dir, reverse=True)
         agent.load_state_dict(ext_ckpt)
         self._device = torch.device('cuda' if cuda else 'cpu')
         self._net = agent.to(self._device)
