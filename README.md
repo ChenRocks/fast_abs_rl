@@ -71,6 +71,17 @@ Using `acl` you can reproduce the results reported in our paper.
 Using `new` you will get our latest result trained with a newer version of PyTorch library
 which leads to slightly higher scores.
 
+If using a Linux based system:
+```sh
+apt-get -y update && apt-get install libxml-parser-perl
+```
+
+Add the following environment variables:
+```sh
+export LANG=C.UTF-8
+export PYTHONIOENCODING=latin-1
+```
+
 To decode, run
 ```
 python decode_full_model.py --path=[path/to/save/decoded/files] --model_dir=[path/to/pretrained] --beam=[beam_size] [--test/--val]
@@ -88,6 +99,15 @@ Next, make the reference files for evaluation:
 ```
 python make_eval_references.py
 ```
+
+```sh
+git clone https://github.com/tagucci/pythonrouge.git
+cd pythonrouge/RELEASE-1.5.5/data/
+./WordNet-2.0-Exceptions/buildExeptionDB.pl ./WordNet-2.0-Exceptions ./smart_common_words.txt ./WordNet-2.0.exc.db
+cp WordNet-2.0.exc.db pyrouge/tools/ROUGE-1.5.5/data/
+export ROUGE=pyrouge/tools/ROUGE-1.5.5/data
+```
+
 and then run evaluation by:
 ```
 python eval_full_model.py --[rouge/meteor] --decode_dir=[path/to/save/decoded/files]

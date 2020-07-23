@@ -18,15 +18,15 @@ from data.batcher import conver2id, pad_batch_tensorize
 from data.data import CnnDmDataset
 
 
-try:
-    DATASET_DIR = os.environ['DATA']
-except KeyError:
-    print('please use environment variable to specify data directories')
 
 class DecodeDataset(CnnDmDataset):
     """ get the article sentences only (for decoding use)"""
     def __init__(self, split):
         assert split in ['val', 'test']
+        try:
+            DATASET_DIR = os.environ.get('DATA')
+        except KeyError:
+            print('please use environment variable to specify data directories')
         super().__init__(split, DATASET_DIR)
 
     def __getitem__(self, i):
