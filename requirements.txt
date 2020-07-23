@@ -1,5 +1,5 @@
 pytorch=0.4.0
-gensim
-tensorboardX
-cytoolz
-pyrouge
+gensim==3.8.3
+tensorboardX==2.1
+cytoolz==0.10.1
+pyrouge==0.1.3
